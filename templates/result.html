@@ -2,40 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Detection Result</title>
+    <title>Detection Results</title>
 </head>
 <body>
     <h1>Detection Results</h1>
     
     <!-- Display result for the first image -->
     <div>
+        <h2>Image 1</h2>
         <img src="{{ url_for('uploaded_file', filename=output_image1.split('/')[-1]) }}" alt="Detected Image 1">
         <br>
-        <p>Number of vehicles detected in Image 1: {{ vehicle_count1 }}</p>
+        <p>Number of cars detected: {{ vehicle_counts1['car'] }}</p>
+        <p>Number of buses detected: {{ vehicle_counts1['bus'] }}</p>
+        <p>Number of trucks detected: {{ vehicle_counts1['truck'] }}</p>
+        <p>Number of two-wheelers detected: {{ vehicle_counts1['motorbike'] }}</p>
+        <p>Green light duration: {{ green_light_durations[0] }} seconds</p>
     </div>
     <br>
     
     <!-- Display result for the second image -->
     <div>
+        <h2>Image 2</h2>
         <img src="{{ url_for('uploaded_file', filename=output_image2.split('/')[-1]) }}" alt="Detected Image 2">
         <br>
-        <p>Number of vehicles detected in Image 2: {{ vehicle_count2 }}</p>
+        <p>Number of cars detected: {{ vehicle_counts2['car'] }}</p>
+        <p>Number of buses detected: {{ vehicle_counts2['bus'] }}</p>
+        <p>Number of trucks detected: {{ vehicle_counts2['truck'] }}</p>
+        <p>Number of two-wheelers detected: {{ vehicle_counts2['motorbike'] }}</p>
+        <p>Green light duration: {{ green_light_durations[1] }} seconds</p>
     </div>
     <br>
     
     <!-- Display result for the third image -->
     <div>
+        <h2>Image 3</h2>
         <img src="{{ url_for('uploaded_file', filename=output_image3.split('/')[-1]) }}" alt="Detected Image 3">
         <br>
-        <p>Number of vehicles detected in Image 3: {{ vehicle_count3 }}</p>
+        <p>Number of cars detected: {{ vehicle_counts3['car'] }}</p>
+        <p>Number of buses detected: {{ vehicle_counts3['bus'] }}</p>
+        <p>Number of trucks detected: {{ vehicle_counts3['truck'] }}</p>
+        <p>Number of two-wheelers detected: {{ vehicle_counts3['motorbike'] }}</p>
+        <p>Green light duration: {{ green_light_durations[2] }} seconds</p>
     </div>
     <br>
     
     <!-- Display result for the fourth image -->
     <div>
+        <h2>Image 4</h2>
         <img src="{{ url_for('uploaded_file', filename=output_image4.split('/')[-1]) }}" alt="Detected Image 4">
         <br>
-        <p>Number of vehicles detected in Image 4: {{ vehicle_count4 }}</p>
+        <p>Number of cars detected: {{ vehicle_counts4['car'] }}</p>
+        <p>Number of buses detected: {{ vehicle_counts4['bus'] }}</p>
+        <p>Number of trucks detected: {{ vehicle_counts4['truck'] }}</p>
+        <p>Number of two-wheelers detected: {{ vehicle_counts4['motorbike'] }}</p>
+        <p>Green light duration: {{ green_light_durations[3] }} seconds</p>
     </div>
     <br>
     
