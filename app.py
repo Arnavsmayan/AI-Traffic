@@ -2,6 +2,7 @@ from flask import Flask, request, render_template, redirect, url_for, send_from_
 import cv2
 import numpy as np
 import os
+import math
 
 app = Flask(__name__)
 
@@ -26,7 +27,7 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     output_images = []
-    vehicle_counts = []
+    vehicle_counts_list = []
     
     for i in range(1, 5):
         file_key = f'file{i}'
@@ -39,17 +40,20 @@ def upload_file():
         file.save(file_path)
 
         # Process the uploaded image and get the vehicle count
-        output_image_path, vehicle_count = process_image(file_path)
+        output_image_path, vehicle_counts = process_image(file_path)
 
         # Store the output path and count for each image
         output_images.append(output_image_path)
-        vehicle_counts.append(vehicle_count)
+        vehicle_counts_list.append(vehicle_counts)
+
+    green_light_durations = calculate_green_light_duration(vehicle_counts_list)
 
     # Pass the vehicle counts and output images to the result template
-    return render_template('result.html', output_image1=output_images[0], vehicle_count1=vehicle_counts[0],
-                           output_image2=output_images[1], vehicle_count2=vehicle_counts[1],
-                           output_image3=output_images[2], vehicle_count3=vehicle_counts[2],
-                           output_image4=output_images[3], vehicle_count4=vehicle_counts[3])
+    return render_template('result.html', output_image1=output_images[0], vehicle_counts1=vehicle_counts_list[0],
+                           output_image2=output_images[1], vehicle_counts2=vehicle_counts_list[1],
+                           output_image3=output_images[2], vehicle_counts3=vehicle_counts_list[2],
+                           output_image4=output_images[3], vehicle_counts4=vehicle_counts_list[3],
+                           green_light_durations=green_light_durations)
 
 def calculate_iou(box1, box2):
     """
@@ -92,7 +96,14 @@ def process_image(image_path):
     output_layers = net.getUnconnectedOutLayersNames()
     detections = net.forward(output_layers)
 
-    vehicle_count = 0
+    # Initialize counters for each vehicle type
+    vehicle_counts = {
+        'car': 0,
+        'bus': 0,
+        'truck': 0,
+        'motorbike': 0
+    }
+
     boxes = []  # List to hold all bounding boxes and their confidences
 
     # Iterate through each detection
@@ -103,9 +114,10 @@ def process_image(image_path):
             class_id = np.argmax(scores)
             confidence = scores[class_id]
 
-            if confidence > 0.5:  # Check confidence threshold
+            # Increase the confidence threshold to reduce false positives
+            if confidence > 0.4:  
                 label = classes[class_id]
-                if label in ['car', 'bus', 'truck']:
+                if label in vehicle_counts:  # Check if the label is a vehicle type we're interested in
                     # Get bounding box coordinates relative to the image size
                     center_x = int(obj[0] * width)
                     center_y = int(obj[1] * height)
@@ -127,18 +139,52 @@ def process_image(image_path):
         current_box = boxes.pop(0)
         selected_boxes.append(current_box)
         
+        # Increase the IoU threshold to 0.9 for better filtering
         boxes = [box for box in boxes if calculate_iou(current_box[:4], box[:4]) <= 0.8]
 
-    # Draw remaining bounding boxes on the image
+    # Update the counts based on NMS results
     for (x, y, w, h, confidence, label) in selected_boxes:
+        vehicle_counts[label] += 1
         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2)
+        cv2.putText(image, f"{label}: {confidence:.2f}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2)
 
     # Save the output image with detected bounding boxes
     output_image_path = os.path.join(OUTPUT_FOLDER, 'output_' + os.path.basename(image_path))
     cv2.imwrite(output_image_path, image)
 
-    return output_image_path, len(selected_boxes)
+    return output_image_path, vehicle_counts
+
+def calculate_green_light_duration(vehicle_counts_list):
+    base_time_per_ecu = 5  # seconds per ECU
+    max_cycle_time = 150   # maximum total cycle time in seconds
+    min_green_time = 10    # minimum green light time in seconds
+
+    ecus_per_side = []
+    ecu_weights = {'car': 1, 'motorbike': 0.5, 'bus': 2.5, 'truck': 3}
+
+    for vehicle_counts in vehicle_counts_list:
+        total_ecu = sum(vehicle_counts[vehicle] * ecu_weights[vehicle] for vehicle in vehicle_counts)
+        ecus_per_side.append(total_ecu)
+
+    # Calculate initial green times
+    initial_green_times = [ecu * base_time_per_ecu for ecu in ecus_per_side]
+    total_initial_time = sum(initial_green_times)
+
+    # Exponential scaling factor
+    def apply_exponential_scaling(time, index, total_count):
+        # Apply exponential scaling
+        scaling = 1 - (index / total_count)
+        scaled_time = time * (0.5 ** scaling)
+        return max(min_green_time, scaled_time)
+
+    if total_initial_time > max_cycle_time:
+        scaling_factor = max_cycle_time / total_initial_time
+        green_light_durations = [apply_exponential_scaling(time, i, len(initial_green_times)) * scaling_factor for i, time in enumerate(initial_green_times)]
+    else:
+        green_light_durations = [apply_exponential_scaling(time, i, len(initial_green_times)) for i, time in enumerate(initial_green_times)]
+
+    return green_light_durations
+    
 
 # Serve output images
 @app.route('/<filename>')
